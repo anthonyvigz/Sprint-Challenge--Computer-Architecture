@@ -2,107 +2,67 @@
 
 import sys
 
-HLT = 0b00000001
-LDI = 0b10000010
-PRN = 0b01000111
-MUL = 0b10100010
-POP = 0b01000110
-PUSH = 0b01000101
-CALL = 0b01010000
-RET = 0b00010001
-ADD = 0b10100000
-CMP = 0b10100111
-JMP = 0b01010100
-JEQ = 0b01010101
-JNE = 0b01010110
-
 
 class CPU:
     """Main CPU class."""
 
     def __init__(self):
-        """Construct a new CPU."""
-        # self.HLT = 0b00000001
-        # self.LDI = 0b10000010
-        # self.PRN = 0b01000111
-        # self.MUL = 0b10100010
-        # self.POP = 0b01000110
-        # self.PUSH = 0b01000101
-        # self.CALL = 0b01010000
-        # self.RET = 0b00010001
-        # self.ADD = 0b10100000
-        # self.CMP = 0b10100111
-        # self.JMP = 0b01010100
-        # self.JEQ = 0b01010101
-        # self.JNE = 0b01010110
-        self.ram = [0] * 256
-        self.reg = [0] * 8
-        self.pc = 0
-        self.sp = 7
-        self.flags = 0
+        """Construct a new CPU.
+        Add list properties to the `CPU` class to hold 256 bytes of memory and 8
+        general-purpose registers.
+        """
+        self.reg = [0] * 8  # register
+        self.ram = [0] * 256  # changed ram from 8 to 256  / location in memory
+        self.pc = 0  # Program Counter, address of the currently executing instruction
+        self.ir = None  # Instruction Register, contains a copy of the currently executing instruction
+        self.branchtable = {}  # from load() previously
+        self.branchtable[0b00000001] = self.handle_HLT
+        self.branchtable[0b10000010] = self.handle_LDI
+        self.branchtable[0b01000111] = self.handle_PRN
+        # self.branchtable[0b10100010] = self.handle_MUL
+        self.branchtable[0b10100111] = self.handle_CMP
+        self.branchtable[0b01010100] = self.handle_JMP
+        self.branchtable[0b01010101] = self.handle_JEQ
+        self.branchtable[0b01010110] = self.handle_JNE
 
-        # self.branctable = {}
-        # self.branctable[self.HLT] = self.handle_HLT
-        # self.branchtable[self.LDI] = self.LDI
-        # self.branchtable[self.PRN] = self.handle_PRN
-        # self.branchtable[self.MUL] = self.handle_MUL
-        # self.branchtable[self.PUSH] = self.handle_PUSH
-        # self.branchtable[self.POP] = self.handle_POP
-        # self.branchtable[self.CALL] = self.handle_CALL
-        # self.branchtable[self.RET] = self.handle_RET
-        # self.branchtable[self.ADD] = self.handle_ADD
-
-    def load(self):
+    def load(self, filename):
         """Load a program into memory."""
 
-        address = 0
+        address = 0  # DO NOT TRY 1 or 2 haha
 
-        if len(sys.argv) != 2:
-            print(F"USAGe: {sys.argv[0]} filename")
-            sys.exit(1)
-        try:
-            with open(sys.argv[1]) as f:
-                for line in f:
-                    num = line.split('#', 1)[0]
-                    if num.strip() == '':
-                        continue
-
-                    print(num)
-                    self.ram[address] = int(num, 2)
-                    address += 1
-
-        except FileNotFoundError:
-            print(f"{sys.argv[0]}: {sys.argv[1]} not found")
-            sys.exit(2)
+        with open(filename) as f:
+            for line in f:
+                comment_split = line.split("#")
+                num = comment_split[0].strip()
+                print("NUM", num)  # some zeros and ones
+                if num == "":
+                    continue  # continue even if blank
+                value = int(num, 2)
+                print("VAL!!", value)  # pretty cool stuff
+                self.ram[address] = value
+                print("RAM ADDRESS", address)
+                address += 1  # iterates
 
         # For now, we've just hardcoded a program:
 
-        # program = {
-
-        #     # From print8.ls8
-        #     0b00000001: self.HLT,
-        #     0b10000010l: self.LDI,
-        #     0b01000111: self.PRN,
-        #     0b10100010: self.MUL,
-        #     0b01000110: self.POP
-        #     0b01000101: self.PUSH,
-        #     0b01010000: self.CALL,
-        #     RET = 0b00010001,
-        #     ADD = 0b10100000,
-        #     CMP = 0b10100111,
-        #     JMP = 0b01010100,
-        #     JEQ = 0b01010101,
-        #     JNE = 0b01010110
-        # }
-
-        # for instruction in program:
-        #     self.ram[address] = instruction
-        #     address += 1
+#         program = [
+#             # From print8.ls8
+#             0b10000010, # LDI R0,8
+#             0b00000000, #_operands_ represents R0
+#             0b00001000, #_operands_ represents value
+#             0b01000111, # PRN R0
+#             0b00000000, #_operands_ represents R0
+#             0b00000001, # HLT
+#         ]
 
     def ram_read(self, address):
+        """
+        should accept the address to read and return the value stored there.
+        """
         return self.ram[address]
 
-    def ram_write(self, address, value):
+    def ram_write(self, value, address):
+        """should accept a value to write, and the address to write it to."""
         self.ram[address] = value
 
     def alu(self, op, reg_a, reg_b):
@@ -110,22 +70,26 @@ class CPU:
 
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
-
-        # elif op == "SUB": etc
-        # elif op == "MUL":
-        #     self.reg[reg_a] *= self.reg[reg_b]:
-        #         self.flags = 0b0000100
+        elif op == "SUB":
+            self.reg[reg_a] -= self.reg[reg_b]
         elif op == "MUL":
             self.reg[reg_a] *= self.reg[reg_b]
+        # ADD CMP CONDITIONAL / Flag
         elif op == "CMP":
             if self.reg[reg_a] == self.reg[reg_b]:
-                self.flags = 0b00000001
-            elif self.reg[reg_a] < self.reg[reg_b]:
-                self.flags = 0b0000100
-            elif self.reg[reg_a] > self.reg[reg_b]:
-                self.flags = 0b0000010
+                self.flag = 0b00000001
+            # if equal set = flag
+            if self.reg[reg_a] < self.reg[reg_b]:
+                self.flag = 0b00000100
+            # If reg_a is less than reg_b, set `L` flag to 1,
+            # otherwise set it to 0
+            if self.reg[reg_a] > self.reg[reg_b]:
+                self.flag = 0b00000010
+            # If reg_a is greater than reg_b, set `G` flag
+            # to 1 otherwise set it to 0.
         else:
             raise Exception("Unsupported ALU operation")
+            # sorted in handle functions below
 
     def trace(self):
         """
@@ -147,91 +111,77 @@ class CPU:
 
         print()
 
+    def handle_HLT(self):
+        self.pc = 0
+        return 'HLT'
+        # halt / exit
+
+    def handle_LDI(self):
+        operand_a = self.ram_read(self.pc + 1)
+        operand_b = self.ram_read(self.pc + 2)
+        self.reg[operand_a] = operand_b
+        self.pc += 3
+        # load/store value in register
+
+    def handle_PRN(self):
+        index = self.ram_read(self.ram[self.pc] + 1)
+        print(self.reg[index])
+        self.pc += 2
+        # Print value in register
+
+    def handle_CMP(self):
+        register_a = self.ram_read(self.pc + 1)
+        register_b = self.ram_read(self.pc + 2)
+        self.alu("CMP", register_a, register_b)
+        self.pc += 3
+
+    def handle_JMP(self):
+        address = self.ram_read(self.pc + 1)
+        self.pc = self.reg[address]
+        # JMP register to the address stored in the given register.
+        # Set the PC to the address stored in the given register.
+
+    def handle_JEQ(self):  # EQUAL
+        address = self.ram_read(self.pc + 1)
+        if self.flag == 0b00000001:
+            self.pc = self.reg[address]
+        else:
+            self.pc += 2
+        # set flag if = is true / jumps
+
+    def handle_JNE(self):  # NOT EQUAL
+        address = self.ram_read(self.pc + 1)
+        if self.flag != 0b00000001:
+            self.pc = self.reg[address]
+        else:
+            self.pc += 2
+        # set flag if = is false or 0 / jumps
+
     def run(self):
-        """Run the CPU."""
-        CMD = {
-            "HLT":  HLT,
-            "LDI": LDI,
-            "PRN": PRN,
-            "MUL": MUL,
-            "POP": POP,
-            "PUSH": PUSH,
-            "CALL": CALL,
-            "RET": RET,
-            "ADD": ADD,
-            "CMP": CMP,
-            "JMP": JMP,
-            "JEQ": JEQ,
-            "JNE": JNE,
-        }
+        """Run the CPU.
+        """
 
         running = True
-
         while running:
-            register = self.ram[self.pc]
-            reg_a = self.ram_read(self.pc + 1)
-            reg_b = self.ram_read(self.pc + 2)
+            operand_a = self.ram_read(self.pc + 1)
+            operand_b = self.ram_read(self.pc + 2)
 
-            if register == CMD["LDI"]:
-                self.reg[reg_a] = reg_b
-                self.pc += 3
+            IR = self.ram_read(self.pc)
+            HLT = self.handle_HLT
+            # LDI = self.handle_LDI
+            # PRN = self.handle_PRN
+            # MUL = self.handle_MUL
 
-            elif register == CMD["HLT"]:
-                running = False
-
-            elif register == CMD["PRN"]:
-                print(self.reg[reg_a])
-                self.pc += 2
-
-            elif register == CMD["MUL"]:
-                result = self.alu("MUL", reg_a, reg_b)
-                print("MUL", result)
-                self.pc += 3
-
-            elif register == CMD["PUSH"]:
-                value = self.reg[reg_a]
-                self.reg[self.sp] -= 1
-                self.ram[self.reg[self.sp]] = value
-                self.pc += 2
-
-            elif register == CMD["POP"]:
-
-                value = self.ram[self.reg[self.sp]]
-                self.reg[reg_a] = value
-                self.reg[self.sp] += 1
-                self.pc += 2
-
-            elif register == CMD["CALL"]:
-                self.reg[self.sp] -= 1
-                self.ram[self.reg[self.sp]] = self.pc + 2
-                self.pc = self.reg[reg_a]
-
-            elif register == CMD["RET"]:
-                self.pc = self.ram[self.reg[self.sp]]
-                self.reg[self.sp] += 1
-
-            elif register == CMD["ADD"]:
-                self.reg[reg_a] += self.reg[reg_b]
-                self.pc += 3
-
-            elif register == CMD["CMP"]:
-                self.alu("CMP", reg_a, reg_b)
-                self.pc += 3
-
-            elif register == CMD["JMP"]:
-                self.pc = self.reg[reg_a]
-
-            elif register == CMD["JNE"]:
-                if self.flags != 0b00000001:
-                    self.pc = self.reg[reg_a]
-                else:
-                    self.pc += 2
-
-            elif register == CMD["JEQ"]:
-                if self.flags == 0b00000001:
-                    self.pc = self.reg[reg_a]
-                else:
-                    self.pc += 2
-
-            else:
+            try:
+                return_command = self.branchtable[IR]()
+                if return_command == 'HLT':
+                    running = False
+            except KeyError:
+                print(f'Error: Unknow command: {IR}')
                 sys.exit(1)
+
+
+cpu = CPU()
+print(sys.argv[1])
+cpu.load(sys.argv[1])
+cpu.run()
