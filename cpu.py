@@ -34,13 +34,13 @@ class CPU:
             for line in f:
                 comment_split = line.split("#")
                 num = comment_split[0].strip()
-                print("NUM", num)  # some zeros and ones
+                # print("NUM", num)  # some zeros and ones
                 if num == "":
                     continue  # continue even if blank
                 value = int(num, 2)
-                print("VAL!!", value)  # pretty cool stuff
+                # print("VAL!!", value)  # pretty cool stuff
                 self.ram[address] = value
-                print("RAM ADDRESS", address)
+                # print("RAM ADDRESS", address)
                 address += 1  # iterates
 
         # For now, we've just hardcoded a program:
